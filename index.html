@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance Tracker</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f5f5f3;
+      --bg-tertiary: #efefed;
+      --text-primary: #1a1a18;
+      --text-secondary: #6b6b67;
+      --border-light: rgba(0,0,0,0.12);
+      --border-mid: rgba(0,0,0,0.22);
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 760px; margin: 0 auto; }
+
+    h1 { font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+    .sub { font-size: 14px; color: var(--text-secondary); margin-bottom: 1.5rem; }
+
+    .card {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+    }
+
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label { font-size: 13px; color: var(--text-secondary); }
+
+    input[type="text"],
+    input[type="date"],
+    select {
+      height: 36px;
+      border: 0.5px solid var(--border-mid);
+      border-radius: var(--radius-md);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      padding: 0 10px;
+      font-size: 14px;
+      font-family: var(--font);
+      outline: none;
+    }
+    input:focus, select:focus { box-shadow: 0 0 0 2px rgba(0,0,0,0.12); }
+
+    .subject-input { min-width: 180px; }
+
+    .btn {
+      height: 36px;
+      padding: 0 16px;
+      border: 0.5px solid var(--border-mid);
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 14px;
+      cursor: pointer;
+      font-family: var(--font);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.12s, transform 0.08s;
+    }
+    .btn:hover { background: var(--bg-secondary); }
+    .btn:active { transform: scale(0.98); }
+
+    .btn-primary { background: var(--text-primary); color: var(--bg-primary); border-color: var(--text-primary); }
+    .btn-primary:hover { background: #333; }
+
+    .btn-danger { border-color: #E24B4A; color: #A32D2D; }
+    .btn-danger:hover { background: #FCEBEB; }
+
+    .btn-success { background: #0F6E56; color: #fff; border-color: #0F6E56; }
+    .btn-success:hover { background: #0a5542; }
+
+    .toggle-row { display: flex; gap: 8px; }
+    .tog {
+      padding: 0 14px;
+      height: 34px;
+      border-radius: 20px;
+      border: 0.5px solid var(--border-mid);
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 13px;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: background 0.12s;
+    }
+    .tog.yes { background: #E1F5EE; color: #0F6E56; border-color: #5DCAA5; }
+    .tog.no  { background: #FCEBEB; color: #A32D2D; border-color: #F09595; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-secondary);
+      border: 0.5px solid var(--border-light);
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+    .chip button {
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--text-secondary);
+      padding: 0;
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .log-msg { font-size: 13px; color: var(--text-secondary); margin-top: 8px; min-height: 18px; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 10px;
+    }
+
+    .stat-card { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 1rem; }
+    .stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+    .stat-value { font-size: 22px; font-weight: 600; color: var(--text-primary); }
+    .stat-sub   { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+    .pct-bar-bg { height: 6px; background: var(--border-light); border-radius: 4px; margin-top: 8px; }
+    .pct-bar    { height: 6px; border-radius: 4px; transition: width 0.3s; }
+
+    .badge-ok   { display: inline-block; margin-top: 6px; font-size: 12px; padding: 3px 10px; border-radius: 20px; background: #E1F5EE; color: #085041; }
+    .badge-warn { display: inline-block; margin-top: 6px; font-size: 12px; padding: 3px 10px; border-radius: 20px; background: #FCEBEB; color: #791F1F; }
+
+    .log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .log-table th {
+      text-align: left;
+      padding: 6px 8px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      border-bottom: 0.5px solid var(--border-light);
+    }
+    .log-table td {
+      padding: 7px 8px;
+      border-bottom: 0.5px solid var(--border-light);
+      color: var(--text-primary);
+    }
+    .log-table tr:last-child td { border-bottom: none; }
+
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; }
+    .pill-yes { background: #E1F5EE; color: #085041; }
+    .pill-no  { background: #FCEBEB; color: #791F1F; }
+
+    .empty { text-align: center; color: var(--text-secondary); padding: 2rem; font-size: 14px; }
+
+    .action-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 0.25rem; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Attendance Tracker</h1>
+  <p class="sub">Track classes, monitor attendance percentage, and export to Excel.</p>
+
+  <!-- Subjects -->
+  <div class="card">
+    <div class="card-title">Manage Subjects</div>
+    <div class="row">
+      <div class="field">
+        <label>Subject name</label>
+        <input type="text" id="subjectInput" class="subject-input" placeholder="e.g. Mathematics" />
+      </div>
+      <button class="btn btn-primary" onclick="addSubject()">+ Add subject</button>
+    </div>
+    <div class="chips" id="subjectChips"></div>
+  </div>
+
+  <!-- Log Attendance -->
+  <div class="card">
+    <div class="card-title">Log Attendance</div>
+    <div class="row">
+      <div class="field">
+        <label>Subject</label>
+        <select id="logSubject" style="min-width:160px"></select>
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="logDate" />
+      </div>
+      <div class="field">
+        <label>Attended?</label>
+        <div class="toggle-row">
+          <button class="tog yes" id="togYes" onclick="setAttended(true)">Present</button>
+          <button class="tog"     id="togNo"  onclick="setAttended(false)">Absent</button>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="logEntry()">Log</button>
+    </div>
+    <p class="log-msg" id="logMsg"></p>
+  </div>
+
+  <!-- Stats -->
+  <div class="card">
+    <div class="card-title">Stats by Subject</div>
+    <div class="stats-grid" id="statsGrid">
+      <div class="empty">No entries yet. Add subjects and log attendance above.</div>
+    </div>
+  </div>
+
+  <!-- All Records -->
+  <div class="card">
+    <div class="card-title">All Records</div>
+    <div id="logTableWrap">
+      <div class="empty">No records logged yet.</div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="action-row">
+    <button class="btn btn-success" onclick="exportExcel()">&#8595; Download Excel</button>
+    <button class="btn btn-danger"  onclick="clearAll()">Clear all data</button>
+  </div>
+</div>
+
+<script>
+  let subjects = [];
+  let entries  = [];
+  let attended = true;
+
+  // Set today's date as default
+  document.getElementById('logDate').value = new Date().toISOString().slice(0, 10);
+
+  /* ── Toggle present / absent ── */
+  function setAttended(val) {
+    attended = val;
+    document.getElementById('togYes').className = 'tog' + (val ? ' yes' : '');
+    document.getElementById('togNo').className  = 'tog' + (!val ? ' no'  : '');
+  }
+
+  /* ── Subjects ── */
+  function addSubject() {
+    const inp  = document.getElementById('subjectInput');
+    const name = inp.value.trim();
+    if (!name) return;
+    if (subjects.find(s => s.toLowerCase() === name.toLowerCase())) { inp.value = ''; return; }
+    subjects.push(name);
+    inp.value = '';
+    renderChips();
+    renderSubjectSelect();
+    renderStats();
+  }
+
+  function removeSubject(s) {
+    subjects = subjects.filter(x => x !== s);
+    entries  = entries.filter(e => e.subject !== s);
+    renderChips();
+    renderSubjectSelect();
+    renderStats();
+    renderTable();
+  }
+
+  function renderChips() {
+    document.getElementById('subjectChips').innerHTML =
+      subjects.map(s =>
+        `<div class="chip">${s}
+           <button onclick="removeSubject('${esc(s)}')">&times;</button>
+         </div>`
+      ).join('');
+  }
+
+  function renderSubjectSelect() {
+    const sel = document.getElementById('logSubject');
+    sel.innerHTML = subjects.length
+      ? subjects.map(s => `<option value="${esc(s)}">${s}</option>`).join('')
+      : '<option value="">— add a subject first —</option>';
+  }
+
+  /* ── Log entry ── */
+  function logEntry() {
+    const subject = document.getElementById('logSubject').value;
+    const date    = document.getElementById('logDate').value;
+    const msg     = document.getElementById('logMsg');
+    if (!subject || !date) { msg.textContent = 'Please select a subject and date.'; return; }
+
+    const dup = entries.find(e => e.subject === subject && e.date === date);
+    if (dup) {
+      dup.attended = attended;
+      msg.textContent = `Updated ${subject} on ${fmtDate(date)}.`;
+    } else {
+      entries.push({ subject, date, attended });
+      msg.textContent = `Logged ${subject} on ${fmtDate(date)} — ${attended ? 'Present' : 'Absent'}.`;
+    }
+    entries.sort((a, b) => b.date.localeCompare(a.date));
+    renderStats();
+    renderTable();
+  }
+
+  function deleteEntry(i) {
+    entries.splice(i, 1);
+    renderStats();
+    renderTable();
+  }
+
+  /* ── Stats ── */
+  function renderStats() {
+    const grid = document.getElementById('statsGrid');
+    if (!subjects.length) {
+      grid.innerHTML = '<div class="empty">No subjects yet.</div>';
+      return;
+    }
+    grid.innerHTML = subjects.map(s => {
+      const sub     = entries.filter(e => e.subject === s);
+      const total   = sub.length;
+      const present = sub.filter(e => e.attended).length;
+      const pct     = total ? Math.round((present / total) * 100) : 0;
+      const barClr  = pct >= 75 ? '#1D9E75' : '#E24B4A';
+      let extra = '';
+      if (total === 0) {
+        extra = `<div class="stat-sub">No classes logged yet</div>`;
+      } else if (pct >= 75) {
+        extra = `<span class="badge-ok">On track (${pct}%)</span>`;
+      } else {
+        const needed = classesNeededFor75(present, total);
+        extra = `<span class="badge-warn">Need ${needed} more class${needed === 1 ? '' : 'es'} to reach 75%</span>`;
+      }
+      return `
+        <div class="stat-card">
+          <div class="stat-label">${s}</div>
+          <div class="stat-value">${pct}%</div>
+          <div class="stat-sub">${present}/${total} classes attended</div>
+          <div class="pct-bar-bg">
+            <div class="pct-bar" style="width:${Math.min(100, pct)}%; background:${barClr};"></div>
+          </div>
+          ${extra}
+        </div>`;
+    }).join('');
+  }
+
+  function classesNeededFor75(present, total) {
+    let p = present, t = total, n = 0;
+    while ((p / t) * 100 < 75) { p++; t++; n++; if (n > 1000) break; }
+    return n;
+  }
+
+  /* ── Table ── */
+  function renderTable() {
+    const wrap = document.getElementById('logTableWrap');
+    if (!entries.length) {
+      wrap.innerHTML = '<div class="empty">No records logged yet.</div>';
+      return;
+    }
+    wrap.innerHTML = `
+      <table class="log-table">
+        <thead>
+          <tr><th>Subject</th><th>Date</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          ${entries.map((e, i) => `
+            <tr>
+              <td>${e.subject}</td>
+              <td>${fmtDate(e.date)}</td>
+              <td><span class="pill ${e.attended ? 'pill-yes' : 'pill-no'}">${e.attended ? 'Present' : 'Absent'}</span></td>
+              <td>
+                <button class="btn btn-danger" style="height:28px;padding:0 10px;font-size:12px;"
+                  onclick="deleteEntry(${i})">Remove</button>
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  /* ── Excel export ── */
+  function exportExcel() {
+    if (!entries.length) { alert('No data to export yet.'); return; }
+
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1 — Summary
+    const summaryRows = [['Subject','Classes Attended','Total Classes','Attendance %','Status','Extra Classes Needed for 75%']];
+    subjects.forEach(s => {
+      const sub     = entries.filter(e => e.subject === s);
+      const total   = sub.length;
+      const present = sub.filter(e => e.attended).length;
+      const pct     = total ? Math.round((present / total) * 100) : 0;
+      const status  = pct >= 75 ? 'On Track' : 'Below 75%';
+      const needed  = pct >= 75 ? '-' : classesNeededFor75(present, total);
+      summaryRows.push([s, present, total, pct + '%', status, needed]);
+    });
+    const ws1 = XLSX.utils.aoa_to_sheet(summaryRows);
+    ws1['!cols'] = [{wch:22},{wch:18},{wch:16},{wch:16},{wch:14},{wch:30}];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+
+    // Sheet 2 — All Records
+    const detailRows = [['Subject','Date','Attended']];
+    [...entries]
+      .sort((a, b) => a.subject.localeCompare(b.subject) || a.date.localeCompare(b.date))
+      .forEach(e => detailRows.push([e.subject, fmtDate(e.date), e.attended ? 'Yes' : 'No']));
+    const ws2 = XLSX.utils.aoa_to_sheet(detailRows);
+    ws2['!cols'] = [{wch:22},{wch:16},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'All Records');
+
+    XLSX.writeFile(wb, 'attendance_tracker.xlsx');
+  }
+
+  /* ── Helpers ── */
+  function fmtDate(d) {
+    const [y, m, day] = d.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${parseInt(day)} ${months[parseInt(m) - 1]} ${y}`;
+  }
+
+  function esc(s) { return s.replace(/'/g, "\\'"); }
+
+  function clearAll() {
+    if (!confirm('Clear all subjects and entries?')) return;
+    subjects = []; entries = [];
+    renderChips(); renderSubjectSelect(); renderStats(); renderTable();
+  }
+
+  // Init
+  renderSubjectSelect();
+  renderStats();
+  renderTable();
+
+  // Allow Enter key to add subject
+  document.getElementById('subjectInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addSubject();
+  });
+</script>
+</body>
+</html>
