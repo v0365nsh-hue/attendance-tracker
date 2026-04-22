@@ -460,32 +460,87 @@
 
   function downloadExcel() {
     if (!logs.length) return;
-    const allSubjects = [...new Set(logs.map(l => l.subject))];
-    const wb = XLSX.utils.book_new();
 
-    const logsData = [['#', 'Subject', 'Date', 'Status']];
-    const sorted = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
-    sorted.forEach((l, i) => {
-      logsData.push([i + 1, l.subject, l.date, l.status === 'present' ? 'Present' : 'Absent']);
-    });
-    const ws1 = XLSX.utils.aoa_to_sheet(logsData);
-    ws1['!cols'] = [{ wch: 5 }, { wch: 25 }, { wch: 14 }, { wch: 10 }];
-    XLSX.utils.book_append_sheet(wb, ws1, 'All Logs');
+  const wb = XLSX.utils.book_new();
 
-    const summaryData = [['Subject', 'Total Classes', 'Present', 'Absent', 'Attendance %']];
-    allSubjects.forEach(s => {
-      const subLogs = logs.filter(l => l.subject === s);
-      const present = subLogs.filter(l => l.status === 'present').length;
-      const total = subLogs.length;
-      const pct = total ? Math.round((present / total) * 100) : 0;
-      summaryData.push([s, total, present, total - present, pct + '%']);
-    });
-    const ws2 = XLSX.utils.aoa_to_sheet(summaryData);
-    ws2['!cols'] = [{ wch: 25 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 14 }];
-    XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
+  const allSubjects = [...new Set(logs.map(l => l.subject))];
 
-    XLSX.writeFile(wb, 'attendance_' + new Date().toISOString().split('T')[0] + '.xlsx');
-    showToast('Excel downloaded \u2713');
+  // HEADER
+  const data = [[
+    'Subject',
+    'Total Classes',
+    'Present',
+    'Absent',
+    'Attendance %',
+    'Status'
+  ]];
+
+  allSubjects.forEach(s => {
+    const subLogs = logs.filter(l => l.subject === s);
+    const present = subLogs.filter(l => l.status === 'present').length;
+    const total = subLogs.length;
+    const absent = total - present;
+    const pct = total ? Math.round((present / total) * 100) : 0;
+
+    const status = pct >= 75 ? 'On Track' : 'Below 75%';
+
+    data.push([
+      s,
+      total,
+      present,
+      absent,
+      pct + '%',
+      status
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+
+  // 🎨 STYLE COLORS
+  const range = XLSX.utils.decode_range(ws['!ref']);
+
+  for (let R = 1; R <= range.e.r; ++R) {
+    const presentCell = XLSX.utils.encode_cell({ r: R, c: 2 });
+    const absentCell  = XLSX.utils.encode_cell({ r: R, c: 3 });
+    const statusCell  = XLSX.utils.encode_cell({ r: R, c: 5 });
+
+    // GREEN for present
+    if (ws[presentCell]) {
+      ws[presentCell].s = {
+        font: { color: { rgb: "008000" } }
+      };
+    }
+
+    // RED for absent
+    if (ws[absentCell]) {
+      ws[absentCell].s = {
+        font: { color: { rgb: "FF0000" } }
+      };
+    }
+
+    // STATUS COLOR
+    if (ws[statusCell]) {
+      const val = ws[statusCell].v;
+      ws[statusCell].s = {
+        font: { color: { rgb: val === 'On Track' ? "008000" : "FF0000" } }
+      };
+    }
+  }
+
+  ws['!cols'] = [
+    { wch: 25 },
+    { wch: 16 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 16 },
+    { wch: 18 }
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Summary');
+
+  XLSX.writeFile(wb, 'attendance_summary.xlsx');
+
+  showToast('Excel downloaded ✓');
   }
 
   function clearAll() {
