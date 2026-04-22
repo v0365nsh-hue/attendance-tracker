@@ -1,455 +1,497 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Attendance Tracker</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Attendance Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
 
-    :root {
-      --bg-primary: #ffffff;
-      --bg-secondary: #f5f5f3;
-      --bg-tertiary: #efefed;
-      --text-primary: #1a1a18;
-      --text-secondary: #6b6b67;
-      --border-light: rgba(0,0,0,0.12);
-      --border-mid: rgba(0,0,0,0.22);
-      --radius-md: 8px;
-      --radius-lg: 12px;
-      --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
-    }
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --card: #1e1e1e;
+    --border: #2a2a2a;
+    --accent: #c8f135;
+    --accent2: #f13565;
+    --text: #f0f0f0;
+    --muted: #666;
+    --present: #c8f135;
+    --absent: #f13565;
+  }
 
-    body {
-      font-family: var(--font);
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-      min-height: 100vh;
-      padding: 2rem 1rem;
-    }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    .container { max-width: 760px; margin: 0 auto; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
 
-    h1 { font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
-    .sub { font-size: 14px; color: var(--text-secondary); margin-bottom: 1.5rem; }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(200,241,53,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(200,241,53,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
 
-    .card {
-      background: var(--bg-primary);
-      border: 0.5px solid var(--border-light);
-      border-radius: var(--radius-lg);
-      padding: 1.25rem;
-      margin-bottom: 1rem;
-    }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; position: relative; z-index: 1; }
 
-    .card-title {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--text-secondary);
-      margin-bottom: 1rem;
-    }
+  header {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 48px; gap: 16px; flex-wrap: wrap;
+  }
 
-    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .logo-area h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+  .logo-area h1 span { color: var(--accent); }
+  .logo-area p { color: var(--muted); font-size: 0.75rem; margin-top: 6px; letter-spacing: 2px; text-transform: uppercase; }
 
-    .field { display: flex; flex-direction: column; gap: 4px; }
-    .field label { font-size: 13px; color: var(--text-secondary); }
+  .btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .btn-accent { background: var(--accent); color: #0d0d0d; }
+  .btn-accent:hover { background: #d8ff45; transform: translateY(-1px); }
+  .btn-outline { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .btn-outline:hover { background: rgba(200,241,53,0.08); }
+  .btn-danger { background: transparent; color: var(--accent2); border: 1px solid var(--accent2); font-size: 0.7rem; padding: 6px 12px; }
+  .btn-danger:hover { background: rgba(241,53,101,0.1); }
+  .btn-download {
+    background: var(--accent); color: #0d0d0d;
+    font-size: 0.85rem; padding: 12px 28px; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .btn-download:hover { background: #d8ff45; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(200,241,53,0.25); }
+  .btn-download:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; box-shadow: none; }
 
-    input[type="text"],
-    input[type="date"],
-    select {
-      height: 36px;
-      border: 0.5px solid var(--border-mid);
-      border-radius: var(--radius-md);
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      padding: 0 10px;
-      font-size: 14px;
-      font-family: var(--font);
-      outline: none;
-    }
-    input:focus, select:focus { box-shadow: 0 0 0 2px rgba(0,0,0,0.12); }
+  .section { margin-bottom: 36px; }
+  .section-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-    .subject-input { min-width: 180px; }
+  .input-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .input-row input, .input-row select {
+    flex: 1; min-width: 140px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .input-row input:focus, .input-row select:focus { border-color: var(--accent); }
+  .input-row input::placeholder { color: var(--muted); }
 
-    .btn {
-      height: 36px;
-      padding: 0 16px;
-      border: 0.5px solid var(--border-mid);
-      border-radius: var(--radius-md);
-      background: transparent;
-      color: var(--text-primary);
-      font-size: 14px;
-      cursor: pointer;
-      font-family: var(--font);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: background 0.12s, transform 0.08s;
-    }
-    .btn:hover { background: var(--bg-secondary); }
-    .btn:active { transform: scale(0.98); }
+  .subjects-list { display: flex; flex-wrap: wrap; gap: 8px; min-height: 40px; }
+  .subject-chip {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .chip-remove {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 1rem; line-height: 1; padding: 0 2px;
+    transition: color 0.15s;
+  }
+  .chip-remove:hover { color: var(--accent2); }
 
-    .btn-primary { background: var(--text-primary); color: var(--bg-primary); border-color: var(--text-primary); }
-    .btn-primary:hover { background: #333; }
+  .log-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+  }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 0.68rem; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+  .form-group input, .form-group select {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+  .form-group select option { background: var(--card); }
 
-    .btn-danger { border-color: #E24B4A; color: #A32D2D; }
-    .btn-danger:hover { background: #FCEBEB; }
+  .attendance-toggle { display: flex; }
+  .toggle-btn {
+    flex: 1;
+    padding: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .toggle-btn:first-child { border-right: none; }
+  .toggle-btn.active-present { background: rgba(200,241,53,0.15); color: var(--present); border-color: var(--present); }
+  .toggle-btn.active-absent { background: rgba(241,53,101,0.15); color: var(--absent); border-color: var(--absent); }
 
-    .btn-success { background: #0F6E56; color: #fff; border-color: #0F6E56; }
-    .btn-success:hover { background: #0a5542; }
+  .form-footer { margin-top: 20px; display: flex; justify-content: flex-end; }
 
-    .toggle-row { display: flex; gap: 8px; }
-    .tog {
-      padding: 0 14px;
-      height: 34px;
-      border-radius: 20px;
-      border: 0.5px solid var(--border-mid);
-      background: transparent;
-      color: var(--text-secondary);
-      font-size: 13px;
-      cursor: pointer;
-      font-family: var(--font);
-      transition: background 0.12s;
-    }
-    .tog.yes { background: #E1F5EE; color: #0F6E56; border-color: #5DCAA5; }
-    .tog.no  { background: #FCEBEB; color: #A32D2D; border-color: #F09595; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .stat-card:hover { border-color: #444; }
+  .stat-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--accent);
+    transform: scaleX(var(--pct, 0));
+    transform-origin: left;
+    transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .stat-card.low::before { background: var(--accent2); }
+  .stat-card.mid::before { background: #f1b535; }
 
-    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--bg-secondary);
-      border: 0.5px solid var(--border-light);
-      border-radius: 20px;
-      padding: 4px 10px;
-      font-size: 13px;
-      color: var(--text-primary);
-    }
-    .chip button {
-      border: none;
-      background: none;
-      cursor: pointer;
-      color: var(--text-secondary);
-      padding: 0;
-      font-size: 15px;
-      line-height: 1;
-    }
+  .stat-subject { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat-pct { font-family: 'Syne', sans-serif; font-size: 2.2rem; font-weight: 800; line-height: 1; color: var(--accent); }
+  .stat-card.low .stat-pct { color: var(--accent2); }
+  .stat-card.mid .stat-pct { color: #f1b535; }
+  .stat-counts { font-size: 0.7rem; color: var(--muted); margin-top: 6px; }
 
-    .log-msg { font-size: 13px; color: var(--text-secondary); margin-top: 8px; min-height: 18px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  th {
+    text-align: left; padding: 8px 14px;
+    font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); border-bottom: 1px solid var(--border);
+  }
+  td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
 
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 10px;
-    }
+  .badge { display: inline-block; padding: 3px 10px; font-size: 0.65rem; letter-spacing: 1px; text-transform: uppercase; font-weight: 500; }
+  .badge-present { background: rgba(200,241,53,0.12); color: var(--present); }
+  .badge-absent { background: rgba(241,53,101,0.12); color: var(--absent); }
 
-    .stat-card { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 1rem; }
-    .stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
-    .stat-value { font-size: 22px; font-weight: 600; color: var(--text-primary); }
-    .stat-sub   { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .empty-state { text-align: center; padding: 40px; color: var(--muted); font-size: 0.8rem; letter-spacing: 1px; }
 
-    .pct-bar-bg { height: 6px; background: var(--border-light); border-radius: 4px; margin-top: 8px; }
-    .pct-bar    { height: 6px; border-radius: 4px; transition: width 0.3s; }
+  .action-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
 
-    .badge-ok   { display: inline-block; margin-top: 6px; font-size: 12px; padding: 3px 10px; border-radius: 20px; background: #E1F5EE; color: #085041; }
-    .badge-warn { display: inline-block; margin-top: 6px; font-size: 12px; padding: 3px 10px; border-radius: 20px; background: #FCEBEB; color: #791F1F; }
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--accent); color: #0d0d0d;
+    font-family: 'DM Mono', monospace; font-size: 0.8rem; font-weight: 500;
+    padding: 12px 20px;
+    transform: translateY(80px); opacity: 0;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 100; letter-spacing: 1px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
 
-    .log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .log-table th {
-      text-align: left;
-      padding: 6px 8px;
-      color: var(--text-secondary);
-      font-weight: 500;
-      border-bottom: 0.5px solid var(--border-light);
-    }
-    .log-table td {
-      padding: 7px 8px;
-      border-bottom: 0.5px solid var(--border-light);
-      color: var(--text-primary);
-    }
-    .log-table tr:last-child td { border-bottom: none; }
-
-    .pill { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; }
-    .pill-yes { background: #E1F5EE; color: #085041; }
-    .pill-no  { background: #FCEBEB; color: #791F1F; }
-
-    .empty { text-align: center; color: var(--text-secondary); padding: 2rem; font-size: 14px; }
-
-    .action-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 0.25rem; }
-  </style>
+  @media (max-width: 560px) {
+    .form-grid { grid-template-columns: 1fr; }
+    header { flex-direction: column; align-items: flex-start; }
+  }
+</style>
 </head>
 <body>
 <div class="container">
-  <h1>Attendance Tracker</h1>
-  <p class="sub">Track classes, monitor attendance percentage, and export to Excel.</p>
 
-  <!-- Subjects -->
-  <div class="card">
-    <div class="card-title">Manage Subjects</div>
-    <div class="row">
-      <div class="field">
-        <label>Subject name</label>
-        <input type="text" id="subjectInput" class="subject-input" placeholder="e.g. Mathematics" />
-      </div>
-      <button class="btn btn-primary" onclick="addSubject()">+ Add subject</button>
+  <header>
+    <div class="logo-area">
+      <h1>ATTEND<span>ANCE</span></h1>
+      <p>Class tracker — no backend needed</p>
     </div>
-    <div class="chips" id="subjectChips"></div>
+    <button class="btn btn-download" id="downloadBtn" onclick="downloadExcel()" disabled>
+      ↓ Export Excel
+    </button>
+  </header>
+
+  <!-- STEP 1 -->
+  <div class="section">
+    <div class="section-label">01 — Your Subjects</div>
+    <div class="input-row" style="margin-bottom:12px;">
+      <input type="text" id="subjectInput" placeholder="e.g. Mathematics, Physics..." maxlength="40" />
+      <button class="btn btn-accent" onclick="addSubject()">+ Add</button>
+    </div>
+    <div class="subjects-list" id="subjectsList">
+      <span style="color:var(--muted);font-size:0.75rem;align-self:center;">No subjects yet — add some above</span>
+    </div>
   </div>
 
-  <!-- Log Attendance -->
-  <div class="card">
-    <div class="card-title">Log Attendance</div>
-    <div class="row">
-      <div class="field">
-        <label>Subject</label>
-        <select id="logSubject" style="min-width:160px"></select>
-      </div>
-      <div class="field">
-        <label>Date</label>
-        <input type="date" id="logDate" />
-      </div>
-      <div class="field">
-        <label>Attended?</label>
-        <div class="toggle-row">
-          <button class="tog yes" id="togYes" onclick="setAttended(true)">Present</button>
-          <button class="tog"     id="togNo"  onclick="setAttended(false)">Absent</button>
+  <!-- STEP 2 -->
+  <div class="section">
+    <div class="section-label">02 — Log a Class</div>
+    <div class="log-form">
+      <div class="form-grid">
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Subject</label>
+          <select id="logSubject">
+            <option value="">— select a subject —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="logDate" />
+        </div>
+        <div class="form-group">
+          <label>Attendance</label>
+          <div class="attendance-toggle">
+            <button class="toggle-btn active-present" id="btnPresent" onclick="setAttendance('present')">✓ Present</button>
+            <button class="toggle-btn" id="btnAbsent" onclick="setAttendance('absent')">✗ Absent</button>
+          </div>
         </div>
       </div>
-      <button class="btn btn-primary" onclick="logEntry()">Log</button>
-    </div>
-    <p class="log-msg" id="logMsg"></p>
-  </div>
-
-  <!-- Stats -->
-  <div class="card">
-    <div class="card-title">Stats by Subject</div>
-    <div class="stats-grid" id="statsGrid">
-      <div class="empty">No entries yet. Add subjects and log attendance above.</div>
+      <div class="form-footer">
+        <button class="btn btn-accent" onclick="logEntry()">Log Entry →</button>
+      </div>
     </div>
   </div>
 
-  <!-- All Records -->
-  <div class="card">
-    <div class="card-title">All Records</div>
-    <div id="logTableWrap">
-      <div class="empty">No records logged yet.</div>
+  <!-- STEP 3: Stats -->
+  <div class="section" id="statsSection" style="display:none;">
+    <div class="section-label">03 — Attendance Summary</div>
+    <div class="stats-grid" id="statsGrid"></div>
+  </div>
+
+  <!-- STEP 4: Table -->
+  <div class="section" id="logSection">
+    <div class="action-bar">
+      <div class="section-label" style="margin:0;flex:1;">04 — All Entries</div>
+      <button class="btn btn-danger" onclick="clearAll()">Clear All</button>
+    </div>
+    <div style="height:14px;"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Subject</th><th>Date</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody id="logBody">
+          <tr><td colspan="5" class="empty-state">No entries yet — log your first class!</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 
-  <!-- Actions -->
-  <div class="action-row">
-    <button class="btn btn-success" onclick="exportExcel()">&#8595; Download Excel</button>
-    <button class="btn btn-danger"  onclick="clearAll()">Clear all data</button>
-  </div>
 </div>
+
+<div class="toast" id="toast"></div>
 
 <script>
   let subjects = [];
-  let entries  = [];
-  let attended = true;
+  let logs = [];
+  let attendance = 'present';
 
-  // Set today's date as default
-  document.getElementById('logDate').value = new Date().toISOString().slice(0, 10);
+  try {
+    subjects = JSON.parse(localStorage.getItem('att_subjects') || '[]');
+    logs = JSON.parse(localStorage.getItem('att_logs') || '[]');
+  } catch(e) {}
 
-  /* ── Toggle present / absent ── */
-  function setAttended(val) {
-    attended = val;
-    document.getElementById('togYes').className = 'tog' + (val ? ' yes' : '');
-    document.getElementById('togNo').className  = 'tog' + (!val ? ' no'  : '');
+  document.getElementById('logDate').value = new Date().toISOString().split('T')[0];
+
+  renderSubjects();
+  renderLogs();
+  renderStats();
+
+  document.getElementById('subjectInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addSubject();
+  });
+
+  function save() {
+    try {
+      localStorage.setItem('att_subjects', JSON.stringify(subjects));
+      localStorage.setItem('att_logs', JSON.stringify(logs));
+    } catch(e) {}
   }
 
-  /* ── Subjects ── */
   function addSubject() {
-    const inp  = document.getElementById('subjectInput');
-    const name = inp.value.trim();
-    if (!name) return;
-    if (subjects.find(s => s.toLowerCase() === name.toLowerCase())) { inp.value = ''; return; }
-    subjects.push(name);
-    inp.value = '';
-    renderChips();
-    renderSubjectSelect();
-    renderStats();
+    const input = document.getElementById('subjectInput');
+    const val = input.value.trim();
+    if (!val) return showToast('Enter a subject name!');
+    if (subjects.includes(val)) return showToast('Subject already exists!');
+    subjects.push(val);
+    save(); renderSubjects();
+    input.value = '';
+    showToast('"' + val + '" added!');
   }
 
   function removeSubject(s) {
     subjects = subjects.filter(x => x !== s);
-    entries  = entries.filter(e => e.subject !== s);
-    renderChips();
-    renderSubjectSelect();
-    renderStats();
-    renderTable();
+    save(); renderSubjects(); renderStats();
   }
 
-  function renderChips() {
-    document.getElementById('subjectChips').innerHTML =
-      subjects.map(s =>
-        `<div class="chip">${s}
-           <button onclick="removeSubject('${esc(s)}')">&times;</button>
-         </div>`
-      ).join('');
-  }
-
-  function renderSubjectSelect() {
+  function renderSubjects() {
+    const list = document.getElementById('subjectsList');
     const sel = document.getElementById('logSubject');
-    sel.innerHTML = subjects.length
-      ? subjects.map(s => `<option value="${esc(s)}">${s}</option>`).join('')
-      : '<option value="">— add a subject first —</option>';
+    if (!subjects.length) {
+      list.innerHTML = '<span style="color:var(--muted);font-size:0.75rem;align-self:center;">No subjects yet — add some above</span>';
+    } else {
+      list.innerHTML = subjects.map(s =>
+        '<div class="subject-chip">' + s + '<button class="chip-remove" onclick="removeSubjectByIdx(' + subjects.indexOf(s) + ')">×</button></div>'
+      ).join('');
+    }
+    sel.innerHTML = '<option value="">— select a subject —</option>' +
+      subjects.map(s => '<option value="' + s + '">' + s + '</option>').join('');
   }
 
-  /* ── Log entry ── */
+  function removeSubjectByIdx(idx) {
+    subjects.splice(idx, 1);
+    save(); renderSubjects(); renderStats();
+  }
+
+  function setAttendance(val) {
+    attendance = val;
+    document.getElementById('btnPresent').className = 'toggle-btn' + (val === 'present' ? ' active-present' : '');
+    document.getElementById('btnAbsent').className = 'toggle-btn' + (val === 'absent' ? ' active-absent' : '');
+  }
+
   function logEntry() {
     const subject = document.getElementById('logSubject').value;
-    const date    = document.getElementById('logDate').value;
-    const msg     = document.getElementById('logMsg');
-    if (!subject || !date) { msg.textContent = 'Please select a subject and date.'; return; }
-
-    const dup = entries.find(e => e.subject === subject && e.date === date);
-    if (dup) {
-      dup.attended = attended;
-      msg.textContent = `Updated ${subject} on ${fmtDate(date)}.`;
-    } else {
-      entries.push({ subject, date, attended });
-      msg.textContent = `Logged ${subject} on ${fmtDate(date)} — ${attended ? 'Present' : 'Absent'}.`;
+    const date = document.getElementById('logDate').value;
+    if (!subject) return showToast('Please select a subject!');
+    if (!date) return showToast('Please pick a date!');
+    if (logs.find(l => l.subject === subject && l.date === date)) {
+      return showToast('Entry already exists for this subject & date!');
     }
-    entries.sort((a, b) => b.date.localeCompare(a.date));
-    renderStats();
-    renderTable();
+    logs.push({ id: Date.now(), subject, date, status: attendance });
+    save(); renderLogs(); renderStats();
+    showToast('Entry logged \u2713');
   }
 
-  function deleteEntry(i) {
-    entries.splice(i, 1);
-    renderStats();
-    renderTable();
+  function deleteLog(id) {
+    logs = logs.filter(l => l.id !== id);
+    save(); renderLogs(); renderStats();
   }
 
-  /* ── Stats ── */
-  function renderStats() {
-    const grid = document.getElementById('statsGrid');
-    if (!subjects.length) {
-      grid.innerHTML = '<div class="empty">No subjects yet.</div>';
+  function renderLogs() {
+    const tbody = document.getElementById('logBody');
+    if (!logs.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No entries yet — log your first class!</td></tr>';
+      document.getElementById('downloadBtn').disabled = true;
       return;
     }
-    grid.innerHTML = subjects.map(s => {
-      const sub     = entries.filter(e => e.subject === s);
-      const total   = sub.length;
-      const present = sub.filter(e => e.attended).length;
-      const pct     = total ? Math.round((present / total) * 100) : 0;
-      const barClr  = pct >= 75 ? '#1D9E75' : '#E24B4A';
-      let extra = '';
-      if (total === 0) {
-        extra = `<div class="stat-sub">No classes logged yet</div>`;
-      } else if (pct >= 75) {
-        extra = `<span class="badge-ok">On track (${pct}%)</span>`;
-      } else {
-        const needed = classesNeededFor75(present, total);
-        extra = `<span class="badge-warn">Need ${needed} more class${needed === 1 ? '' : 'es'} to reach 75%</span>`;
-      }
-      return `
-        <div class="stat-card">
-          <div class="stat-label">${s}</div>
-          <div class="stat-value">${pct}%</div>
-          <div class="stat-sub">${present}/${total} classes attended</div>
-          <div class="pct-bar-bg">
-            <div class="pct-bar" style="width:${Math.min(100, pct)}%; background:${barClr};"></div>
-          </div>
-          ${extra}
-        </div>`;
+    const sorted = [...logs].sort((a, b) => new Date(b.date) - new Date(a.date));
+    tbody.innerHTML = sorted.map((l, i) =>
+      '<tr>' +
+      '<td style="color:var(--muted)">' + (sorted.length - i) + '</td>' +
+      '<td>' + l.subject + '</td>' +
+      '<td>' + formatDate(l.date) + '</td>' +
+      '<td><span class="badge badge-' + l.status + '">' + l.status + '</span></td>' +
+      '<td><button class="btn btn-danger" onclick="deleteLog(' + l.id + ')">\u2715</button></td>' +
+      '</tr>'
+    ).join('');
+    document.getElementById('downloadBtn').disabled = false;
+  }
+
+  function renderStats() {
+    const section = document.getElementById('statsSection');
+    const grid = document.getElementById('statsGrid');
+    const allSubjects = [...new Set(logs.map(l => l.subject))];
+    if (!allSubjects.length) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+
+    grid.innerHTML = allSubjects.map(s => {
+      const subLogs = logs.filter(l => l.subject === s);
+      const present = subLogs.filter(l => l.status === 'present').length;
+      const total = subLogs.length;
+      const pct = total ? Math.round((present / total) * 100) : 0;
+      const cls = pct < 50 ? 'low' : pct < 75 ? 'mid' : '';
+      return '<div class="stat-card ' + cls + '" style="--pct:' + (pct/100) + '">' +
+        '<div class="stat-subject">' + s + '</div>' +
+        '<div class="stat-pct">' + pct + '%</div>' +
+        '<div class="stat-counts">' + present + ' present / ' + (total - present) + ' absent / ' + total + ' total</div>' +
+        '</div>';
     }).join('');
   }
 
-  function classesNeededFor75(present, total) {
-    let p = present, t = total, n = 0;
-    while ((p / t) * 100 < 75) { p++; t++; n++; if (n > 1000) break; }
-    return n;
-  }
-
-  /* ── Table ── */
-  function renderTable() {
-    const wrap = document.getElementById('logTableWrap');
-    if (!entries.length) {
-      wrap.innerHTML = '<div class="empty">No records logged yet.</div>';
-      return;
-    }
-    wrap.innerHTML = `
-      <table class="log-table">
-        <thead>
-          <tr><th>Subject</th><th>Date</th><th>Status</th><th></th></tr>
-        </thead>
-        <tbody>
-          ${entries.map((e, i) => `
-            <tr>
-              <td>${e.subject}</td>
-              <td>${fmtDate(e.date)}</td>
-              <td><span class="pill ${e.attended ? 'pill-yes' : 'pill-no'}">${e.attended ? 'Present' : 'Absent'}</span></td>
-              <td>
-                <button class="btn btn-danger" style="height:28px;padding:0 10px;font-size:12px;"
-                  onclick="deleteEntry(${i})">Remove</button>
-              </td>
-            </tr>`).join('')}
-        </tbody>
-      </table>`;
-  }
-
-  /* ── Excel export ── */
-  function exportExcel() {
-    if (!entries.length) { alert('No data to export yet.'); return; }
-
+  function downloadExcel() {
+    if (!logs.length) return;
+    const allSubjects = [...new Set(logs.map(l => l.subject))];
     const wb = XLSX.utils.book_new();
 
-    // Sheet 1 — Summary
-    const summaryRows = [['Subject','Classes Attended','Total Classes','Attendance %','Status','Extra Classes Needed for 75%']];
-    subjects.forEach(s => {
-      const sub     = entries.filter(e => e.subject === s);
-      const total   = sub.length;
-      const present = sub.filter(e => e.attended).length;
-      const pct     = total ? Math.round((present / total) * 100) : 0;
-      const status  = pct >= 75 ? 'On Track' : 'Below 75%';
-      const needed  = pct >= 75 ? '-' : classesNeededFor75(present, total);
-      summaryRows.push([s, present, total, pct + '%', status, needed]);
+    const logsData = [['#', 'Subject', 'Date', 'Status']];
+    const sorted = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
+    sorted.forEach((l, i) => {
+      logsData.push([i + 1, l.subject, l.date, l.status === 'present' ? 'Present' : 'Absent']);
     });
-    const ws1 = XLSX.utils.aoa_to_sheet(summaryRows);
-    ws1['!cols'] = [{wch:22},{wch:18},{wch:16},{wch:16},{wch:14},{wch:30}];
-    XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+    const ws1 = XLSX.utils.aoa_to_sheet(logsData);
+    ws1['!cols'] = [{ wch: 5 }, { wch: 25 }, { wch: 14 }, { wch: 10 }];
+    XLSX.utils.book_append_sheet(wb, ws1, 'All Logs');
 
-    // Sheet 2 — All Records
-    const detailRows = [['Subject','Date','Attended']];
-    [...entries]
-      .sort((a, b) => a.subject.localeCompare(b.subject) || a.date.localeCompare(b.date))
-      .forEach(e => detailRows.push([e.subject, fmtDate(e.date), e.attended ? 'Yes' : 'No']));
-    const ws2 = XLSX.utils.aoa_to_sheet(detailRows);
-    ws2['!cols'] = [{wch:22},{wch:16},{wch:12}];
-    XLSX.utils.book_append_sheet(wb, ws2, 'All Records');
+    const summaryData = [['Subject', 'Total Classes', 'Present', 'Absent', 'Attendance %']];
+    allSubjects.forEach(s => {
+      const subLogs = logs.filter(l => l.subject === s);
+      const present = subLogs.filter(l => l.status === 'present').length;
+      const total = subLogs.length;
+      const pct = total ? Math.round((present / total) * 100) : 0;
+      summaryData.push([s, total, present, total - present, pct + '%']);
+    });
+    const ws2 = XLSX.utils.aoa_to_sheet(summaryData);
+    ws2['!cols'] = [{ wch: 25 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 14 }];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
 
-    XLSX.writeFile(wb, 'attendance_tracker.xlsx');
+    XLSX.writeFile(wb, 'attendance_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    showToast('Excel downloaded \u2713');
   }
-
-  /* ── Helpers ── */
-  function fmtDate(d) {
-    const [y, m, day] = d.split('-');
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return `${parseInt(day)} ${months[parseInt(m) - 1]} ${y}`;
-  }
-
-  function esc(s) { return s.replace(/'/g, "\\'"); }
 
   function clearAll() {
+    if (!logs.length && !subjects.length) return;
     if (!confirm('Clear all subjects and entries?')) return;
-    subjects = []; entries = [];
-    renderChips(); renderSubjectSelect(); renderStats(); renderTable();
+    logs = []; subjects = [];
+    save(); renderSubjects(); renderLogs(); renderStats();
+    showToast('All data cleared');
   }
 
-  // Init
-  renderSubjectSelect();
-  renderStats();
-  renderTable();
+  function formatDate(d) {
+    const parts = d.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return parts[2] + ' ' + months[+parts[1] - 1] + ' ' + parts[0];
+  }
 
-  // Allow Enter key to add subject
-  document.getElementById('subjectInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') addSubject();
-  });
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  } 
 </script>
 </body>
 </html>
