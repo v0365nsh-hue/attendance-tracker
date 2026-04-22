@@ -422,25 +422,41 @@
   }
 
   function renderStats() {
-    const section = document.getElementById('statsSection');
-    const grid = document.getElementById('statsGrid');
-    const allSubjects = [...new Set(logs.map(l => l.subject))];
-    if (!allSubjects.length) { section.style.display = 'none'; return; }
-    section.style.display = 'block';
+  const section = document.getElementById('statsSection');
+  const grid = document.getElementById('statsGrid');
 
-    grid.innerHTML = allSubjects.map(s => {
-      const subLogs = logs.filter(l => l.subject === s);
-      const present = subLogs.filter(l => l.status === 'present').length;
-      const total = subLogs.length;
-      const pct = total ? Math.round((present / total) * 100) : 0;
-      const cls = pct < 50 ? 'low' : pct < 75 ? 'mid' : '';
-      return '<div class="stat-card ' + cls + '" style="--pct:' + (pct/100) + '">' +
-        '<div class="stat-subject">' + s + '</div>' +
-        '<div class="stat-pct">' + pct + '%</div>' +
-        '<div class="stat-counts">' + present + ' present / ' + (total - present) + ' absent / ' + total + ' total</div>' +
-        '</div>';
-    }).join('');
+  const allSubjects = [...new Set(logs.map(l => l.subject))];
+  if (!allSubjects.length) {
+    section.style.display = 'none';
+    return;
   }
+
+  section.style.display = 'block';
+
+  grid.innerHTML = allSubjects.map(s => {
+    const subLogs = logs.filter(l => l.subject === s);
+    const present = subLogs.filter(l => l.status === 'present').length;
+    const total = subLogs.length;
+
+    const pct = total ? Math.round((present / total) * 100) : 0;
+    const cls = pct < 50 ? 'low' : pct < 75 ? 'mid' : '';
+    const needed = pct >= 75 ? 0 : classesNeededFor75(present, total);
+
+    return '<div class="stat-card ' + cls + '" style="--pct:' + (pct/100) + '">' +
+      '<div class="stat-subject">' + s + '</div>' +
+      '<div class="stat-pct">' + pct + '%</div>' +
+      '<div class="stat-counts">' +
+        present + ' present / ' + (total - present) + ' absent / ' + total + ' total' +
+      '</div>' +
+
+      (pct >= 75
+        ? '<div style="font-size:0.7rem;color:var(--accent);margin-top:6px;">On track ✓</div>'
+        : '<div style="font-size:0.7rem;color:var(--accent2);margin-top:6px;">Need ' + needed + ' more class' + (needed === 1 ? '' : 'es') + ' for 75%</div>'
+      ) +
+
+    '</div>';
+  }).join('');
+}
 
   function downloadExcel() {
     if (!logs.length) return;
@@ -478,7 +494,25 @@
     logs = []; subjects = [];
     save(); renderSubjects(); renderLogs(); renderStats();
     showToast('All data cleared');
+  }function classesNeededFor75(present, total) {
+  let p = present, t = total, n = 0;
+  while ((p / t) * 100 < 75) {
+    p++;
+    t++;
+    n++;
+    if (n > 1000) break;
   }
+  return n;
+}function classesNeededFor75(present, total) {
+  let p = present, t = total, n = 0;
+  while ((p / t) * 100 < 75) {
+    p++;
+    t++;
+    n++;
+    if (n > 1000) break;
+  }
+  return n;
+}
 
   function formatDate(d) {
     const parts = d.split('-');
